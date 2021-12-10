@@ -1,7 +1,12 @@
 package main;
 
+import Entity.Player;
+import object.SuperObject;
+import tile.TileManager;
+
 import javax.swing.*;
 import java.awt.*;
+import java.util.*;
 
 public class GamePanel extends JPanel implements Runnable {
 
@@ -9,20 +14,29 @@ public class GamePanel extends JPanel implements Runnable {
     final int originalTileSize = 16; //16x16 tile
     final int scale = 3; //set the scale to 3 for 3x3 tiles
 
-    final int tileSize = originalTileSize * scale; //16x16 tile * 3 = 48x48 tile
-    final int maxScreenCol = 16; //16 tiles wide
-    final int maxScreenRow = 12; //12 tiles high
-    final int screenWidth = maxScreenCol * tileSize; //16 tiles * 48 = 768
-    final int screenHeight = maxScreenRow * tileSize; //12 tiles * 48 = 576
+    public int tileSize = originalTileSize * scale; //16x16 tile * 3 = 48x48 tile
+    public int maxScreenCol = 16; //16 tiles wide
+    public int maxScreenRow = 12; //12 tiles high
+    public int screenWidth = maxScreenCol * tileSize; //16 tiles * 48 = 768
+    public int screenHeight = maxScreenRow * tileSize; //12 tiles * 48 = 576
 
+    //World Settings
+    public final int maxWorldCol = 50; //50 tiles wide
+    public final int maxWorldRow = 50; //50 tiles high
+    public final int worldWidth = maxWorldCol * tileSize; //50 tiles * 48 = 2400
+    public final int worldHeight = maxWorldRow * tileSize; //50 tiles * 48 = 2400
 
+    //FPS
+    int FPS = 60;
+
+    TileManager tileM = new TileManager(this);
     KeyHandler keyH = new KeyHandler();
     Thread gameThread;
+    public CollisionChecker cChecker = new CollisionChecker(this);
+    public AssetSetter aSetter = new AssetSetter(this);
+    public Player player = new Player(this, keyH);
+    public SuperObject obj[] = new SuperObject[10];
 
-    //set player default position
-    int playerX = 100;
-    int playerY = 100;
-    int playerSpeed = 4;
 
     public GamePanel() {
         this.setPreferredSize(new Dimension(screenWidth, screenHeight)); //sets the size of the game panel
@@ -31,6 +45,10 @@ public class GamePanel extends JPanel implements Runnable {
         this.addKeyListener(keyH); //adds the key listener to the game panel
         this.setFocusable(true); //allows the game panel to be "focused" to recieve key imputs
 
+    }
+
+    public void setUpGame() {
+        aSetter.setObject();
     }
 
     public void startGameThread() {
@@ -43,37 +61,60 @@ public class GamePanel extends JPanel implements Runnable {
 
         while (gameThread != null) {//while the game thread is alive, it repeats the following code
 
-            //System.out.println("Game loop is running");
+            double drawInterval = 1000000000.0 / FPS; //sets the draw interval to 0.1666 FPS
+            double drawNextTime = System.nanoTime() + drawInterval; //sets the draw next time to the current time plus the draw interval
+
             //1.UPDATE: update information such as character position
             update();
+
             //2.DRAW: draw the screen with the updated information
             repaint();
+
+            try {
+                double remainingTime = drawNextTime - System.nanoTime(); //calculates the remaining time
+                remainingTime = remainingTime / 1000000; //converts the remaining time to milliseconds
+
+                if ( remainingTime < 0) {
+                    remainingTime = 0;
+                }
+                Thread.sleep((long) remainingTime); //sleeps the thread for the remaining time
+
+                drawNextTime += drawInterval; //sets the draw next time to the current time plus the draw interval
+
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
         public void update() {
 
-        if (keyH.upPressed == true) {
-         playerY -=  playerSpeed;
-         }
-        if (keyH.downPressed == true) {
-            playerY += playerSpeed;
+            player.update();
+
         }
-        if (keyH.leftPressed == true) {
-            playerX -= playerSpeed;
-        }
-        if (keyH.rightPressed == true) {
-            playerX += playerSpeed;
-        }
-    }
+
         public void paintComponent(Graphics g) {
 
             super.paintComponent(g); //calls the paint component method of the parent class
 
             Graphics2D g2 = (Graphics2D) g; //converts the graphics object to a 2D graphics object
-            g2.setColor(Color.WHITE);
-            g2.fillRect(playerX, playerY, tileSize, tileSize); //draws a white rectangle over the entire screen
+
+            //TILES
+            tileM.draw(g2);
+
+            //OBJECTS
+            for (int i = 0; i < obj.length; i++) {
+                if (obj[i] != null) {
+                    obj[i].draw(g2, this);
+                }
+            }
+
+            //PLAYER
+            player.draw(g2);
+
             g2.dispose(); //disposes of the graphics object
+
 
 
     }
